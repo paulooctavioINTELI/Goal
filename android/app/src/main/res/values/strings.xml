@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">AwesomeProject</string>
+    <string name="accessibility_service_description">Descrição do Serviço de Acessibilidade</string>
 </resources>
