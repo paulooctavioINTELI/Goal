@@ -1,4 +1,4 @@
-package com.awesomeproject
+package com.goal
 
 import android.app.Activity
 import android.os.Bundle

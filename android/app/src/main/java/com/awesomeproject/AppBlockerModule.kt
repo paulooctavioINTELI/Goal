@@ -1,4 +1,4 @@
-package com.awesomeproject
+package com.goal
 
 import android.app.usage.UsageStatsManager
 import android.content.ComponentName

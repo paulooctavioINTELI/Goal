@@ -1,4 +1,4 @@
-package com.awesomeproject
+package com.goal
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
