@@ -5,11 +5,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   FlatList,
   SafeAreaView,
-  NativeModules,
 } from 'react-native';
+import {NativeModules} from 'react-native';
 
 interface Task {
   time: string;
@@ -38,7 +37,6 @@ const AddHabitScreen: React.FC = () => {
   const [schedule, setSchedule] = useState<Schedule>({});
 
   useEffect(() => {
-    // Fetch the current schedule when the component mounts
     const fetchSchedule = async () => {
       try {
         const jsonSchedule = await AppBlockerModule.getSchedule();
@@ -64,56 +62,117 @@ const AddHabitScreen: React.FC = () => {
     };
 
     try {
-      // Update the schedule in the native module
       await AppBlockerModule.updateSchedule(JSON.stringify(updatedSchedule));
-      setSchedule(updatedSchedule); // Update local state
-      setTime(''); // Clear the input field after adding time
+      setSchedule(updatedSchedule);
+      setTime('');
     } catch (error) {
       console.error('Failed to update schedule:', error);
+    }
+  };
+
+  const handleToggleAccomplished = async (
+    index: number,
+    taskTime: string,
+  ): Promise<void> => {
+    if (!selectedDay) return;
+    console.log(schedule);
+    
+
+    const currentTime = new Date();
+    const [currentHours, currentMinutes] = [
+      currentTime.getHours(),
+      currentTime.getMinutes(),
+    ];
+    const [taskHours, taskMinutes] = taskTime.split(':').map(Number);
+
+    // Comparando se o horário atual é posterior ao da task
+    if (
+      currentHours > taskHours ||
+      (currentHours === taskHours && currentMinutes >= taskMinutes)
+    ) {
+      const tasks = [...(schedule[selectedDay] || [])];
+
+      if (tasks[index]) {
+        tasks[index] = {
+          ...tasks[index],
+          accomplished: !tasks[index].accomplished, // Toggle based on current state
+        };
+      }
+
+      const updatedSchedule = {
+        ...schedule,
+        [selectedDay]: tasks,
+      };
+
+      try {
+        await AppBlockerModule.updateSchedule(JSON.stringify(updatedSchedule));
+        setSchedule(updatedSchedule);
+      } catch (error) {
+        console.error('Failed to update schedule:', error);
+      }
+    } else {
+      console.log("It's not time yet to mark this task as accomplished.");
     }
   };
 
   const renderDayOption = ({item}: {item: string}) => (
     <TouchableOpacity
       onPress={() => setSelectedDay(item)}
-      style={[styles.dayButton, selectedDay === item && styles.selectedDay]}>
-      <Text style={styles.dayText}>{item}</Text>
+      className={`m-1 px-2 min-h-full rounded-lg ${
+        selectedDay === item ? 'bg-green-500' : 'bg-gray-800'
+      } border border-gray-700`}>
+      <Text
+        className={`${selectedDay === item ? 'text-white' : 'text-gray-300'}`}>
+        {item}
+      </Text>
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Add a New Habit</Text>
-      <Text style={styles.label}>Select a Day:</Text>
+    <SafeAreaView className="flex-1 p-4 bg-gray-900">
+      <Text className="text-2xl font-bold text-white mb-4">
+        Add a New Habit
+      </Text>
+      <Text className="text-lg mb-2 text-gray-300">Select a Day:</Text>
       <FlatList
         data={DAYS_OF_WEEK}
         renderItem={renderDayOption}
         keyExtractor={item => item}
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{height: 5}}
+        className="mb-4 max-h-16"
+        contentContainerStyle={`items-center justify-center`}
       />
-      <Text style={styles.label}>Enter Time (HH:MM):</Text>
+      <Text className="text-lg mb-2 text-gray-300">Enter Time (HH:MM):</Text>
       <TextInput
-        style={styles.input}
+        className="border p-2 mb-2 rounded-lg bg-gray-800 text-white"
         value={time}
         onChangeText={setTime}
         placeholder="e.g., 08:00"
+        placeholderTextColor="gray"
       />
-      <TouchableOpacity onPress={handleAddTime} style={styles.addButton}>
-        <Text style={styles.buttonText}>Add Time</Text>
+      <TouchableOpacity
+        onPress={handleAddTime}
+        className="bg-green-500 p-3 rounded-lg items-center">
+        <Text className="text-white font-bold">Add Time</Text>
       </TouchableOpacity>
-      <Text style={styles.label}>Current Schedule for {selectedDay}:</Text>
+      <Text className="text-lg mb-2 text-gray-300">
+        Current Schedule for {selectedDay}:
+      </Text>
       {selectedDay && schedule[selectedDay] && (
         <FlatList
           data={schedule[selectedDay]}
-          renderItem={({item}) => (
-            <View style={styles.scheduleItem}>
-              <Text style={{color: 'black'}}>{item.time}</Text>
-              <Text style={{color: 'black'}}>
+          renderItem={(
+            {item, index}, // Adicione index aqui
+          ) => (
+            <TouchableOpacity
+              onPress={() => handleToggleAccomplished(index, item.time)} // Use index
+              className="p-2 border-b border-gray-700 bg-gray-800">
+              <Text className="text-white">{item.time}</Text>
+              <Text className="text-green-400">
                 Accomplished: {item.accomplished ? 'Yes' : 'No'}
               </Text>
-            </View>
+            </TouchableOpacity>
           )}
           keyExtractor={(_, index) => index.toString()}
         />
@@ -121,67 +180,5 @@ const AddHabitScreen: React.FC = () => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: '#F0F0F0',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: '#333',
-  },
-  label: {
-    fontSize: 16,
-    marginVertical: 8,
-    color: '#333',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: 'gray',
-    padding: 8,
-    marginVertical: 8,
-    borderRadius: 4,
-    backgroundColor: 'white',
-    color: 'black',
-  },
-  addButton: {
-    backgroundColor: 'blue',
-    padding: 10,
-    borderRadius: 4,
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  dayButton: {
-    height: 5,
-    padding: 10,
-    margin: 5,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'gray',
-    backgroundColor: 'white',
-  },
-  selectedDay: {
-    backgroundColor: 'lightblue',
-  },
-  dayText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  scheduleItem: {
-    padding: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'gray',
-    backgroundColor: 'white',
-    color: 'black',
-  },
-});
 
 export default AddHabitScreen;

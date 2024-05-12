@@ -13,16 +13,62 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import android.os.Handler
 
 class AppMonitorService : AccessibilityService() {
     private lateinit var sharedPreferences: SharedPreferences
+    private val handler = Handler()
+    private val blockedPackages = setOf(
+        "com.google.android.youtube",
+        "com.instagram.android",
+        "com.zhiliaoapp.musically",
+        "com.netflix.mediaclient",
+        "com.amazon.avod.thirdpartyclient",
+        "com.disney.disneyplus",
+        "com.disney.starplus",
+        "com.cbs.app",
+        "com.hbo.hbonow",
+        "com.microsoft.xboxgaming",
+        "com.android.settings",
+        "com.discord",
+        "com.android.vending"
+    )
+    private val checkUpdateTimeRunnable = object : Runnable {
+        override fun run() {
+            val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+            if (currentTime == "23:59") {
+                resetJsonSchedule()
+            }
+            // Reagendar para rodar novamente após 60000ms (1 minuto)
+            handler.postDelayed(this, 60000)
+        }
+    }
+
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         // Inicializa as preferências compartilhadas
         sharedPreferences = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
         Log.d("AppMonitorService", "Service connected")
+        handler.post(checkUpdateTimeRunnable)
     }
+
+    private fun resetJsonSchedule() {
+        val jsonSchedule = sharedPreferences.getString("jsonSchedule", "{}") ?: "{}"
+        val schedule = JSONObject(jsonSchedule)
+        val keys = schedule.keys()
+
+        while (keys.hasNext()) {
+            val day = keys.next()
+            val tasks = schedule.getJSONArray(day)
+            for (i in 0 until tasks.length()) {
+                val task = tasks.getJSONObject(i)
+                task.put("accomplished", false)
+            }
+        }
+        sharedPreferences.edit().putString("jsonSchedule", schedule.toString()).apply()
+        Log.d("AppMonitorService", "Reset schedule: $schedule")
+    }    
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event?.let { accessibilityEvent ->
@@ -71,28 +117,30 @@ class AppMonitorService : AccessibilityService() {
     override fun onInterrupt() {
         Log.w("AppMonitorService", "Service interrupted")
     }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        handler.removeCallbacks(checkUpdateTimeRunnable)
+        Log.d("AppMonitorService", "Service destroyed")
+    }
 
     private fun dayOfWeekToString(dayOfWeek: Int): String {
         return arrayOf("sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday")[dayOfWeek - 1]
     }
 
-        private fun shouldBlockApp(tasks: JSONArray, currentTime: String, packageName: String): Boolean {
-            // Formata o horário atual para um objeto Date para comparação
-            val currentTimeDate = SimpleDateFormat("HH:mm", Locale.getDefault()).parse(currentTime)
+    private fun shouldBlockApp(tasks: JSONArray, currentTime: String, packageName: String): Boolean {
+        val currentTimeDate = SimpleDateFormat("HH:mm", Locale.getDefault()).parse(currentTime)
 
-            for (i in 0 until tasks.length()) {
-                val task = tasks.getJSONObject(i)
-                val taskTime = task.getString("time")
-                val accomplished = task.getBoolean("accomplished")
+        for (i in 0 until tasks.length()) {
+            val task = tasks.getJSONObject(i)
+            val taskTime = task.getString("time")
+            val accomplished = task.getBoolean("accomplished")
+            val taskTimeDate = SimpleDateFormat("HH:mm", Locale.getDefault()).parse(taskTime)
 
-                // Formata o horário da tarefa para um objeto Date para comparação
-                val taskTimeDate = SimpleDateFormat("HH:mm", Locale.getDefault()).parse(taskTime)
-
-                // Verifica se o horário atual é igual ou depois do horário da tarefa e se a tarefa não foi concluída
-                if (currentTimeDate.compareTo(taskTimeDate) >= 0 && !accomplished && packageName.contains("com.instagram.android")) {
-                    return true
-                }
+            if (currentTimeDate.compareTo(taskTimeDate) >= 0 && !accomplished && blockedPackages.contains(packageName)) {
+                return true
             }
-            return false
         }
+        return false
+    }
 }
