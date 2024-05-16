@@ -1,18 +1,23 @@
-// AddHabitScreen.tsx
 import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   FlatList,
   SafeAreaView,
+  Alert,
+  PermissionsAndroid,
+  Platform,
+  TextInput,
 } from 'react-native';
 import {NativeModules} from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import {launchCamera, CameraOptions, CameraType} from 'react-native-image-picker';
 
 interface Task {
   time: string;
   accomplished: boolean;
+  name: string;
 }
 
 interface Schedule {
@@ -32,8 +37,10 @@ const DAYS_OF_WEEK = [
 ];
 
 const AddHabitScreen: React.FC = () => {
-  const [selectedDay, setSelectedDay] = useState<string>('');
-  const [time, setTime] = useState<string>('');
+  const [selectedDay, setSelectedDay] = useState<string>('sunday');
+  const [time, setTime] = useState<Date>(new Date());
+  const [showTimePicker, setShowTimePicker] = useState<boolean>(false);
+  const [name, setName] = useState<string>('');
   const [schedule, setSchedule] = useState<Schedule>({});
 
   useEffect(() => {
@@ -51,22 +58,44 @@ const AddHabitScreen: React.FC = () => {
   }, []);
 
   const handleAddTime = async (): Promise<void> => {
-    if (!selectedDay || !time) return;
+    if (!selectedDay || !time || !name) return;
+
+    const formattedTime = time.toTimeString().slice(0, 5);
 
     const updatedSchedule = {
       ...schedule,
       [selectedDay]: [
         ...(schedule[selectedDay] || []),
-        {time, accomplished: false},
+        {time: formattedTime, accomplished: false, name},
       ],
     };
 
     try {
       await AppBlockerModule.updateSchedule(JSON.stringify(updatedSchedule));
       setSchedule(updatedSchedule);
-      setTime('');
+      setTime(new Date());
+      setName('');
     } catch (error) {
       console.error('Failed to update schedule:', error);
+    }
+  };
+
+  const requestCameraPermission = async () => {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        {
+          title: 'Camera Permission',
+          message: 'This app needs access to your camera to take photos',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        },
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      console.warn(err);
+      return false;
     }
   };
 
@@ -75,8 +104,6 @@ const AddHabitScreen: React.FC = () => {
     taskTime: string,
   ): Promise<void> => {
     if (!selectedDay) return;
-    console.log(schedule);
-    
 
     const currentTime = new Date();
     const [currentHours, currentMinutes] = [
@@ -85,33 +112,51 @@ const AddHabitScreen: React.FC = () => {
     ];
     const [taskHours, taskMinutes] = taskTime.split(':').map(Number);
 
-    // Comparando se o horário atual é posterior ao da task
     if (
       currentHours > taskHours ||
       (currentHours === taskHours && currentMinutes >= taskMinutes)
     ) {
-      const tasks = [...(schedule[selectedDay] || [])];
-
-      if (tasks[index]) {
-        tasks[index] = {
-          ...tasks[index],
-          accomplished: !tasks[index].accomplished, // Toggle based on current state
-        };
+      const hasPermission = await requestCameraPermission();
+      if (!hasPermission) {
+        Alert.alert('Camera permission denied');
+        return;
       }
 
-      const updatedSchedule = {
-        ...schedule,
-        [selectedDay]: tasks,
+      const options: CameraOptions = {
+        mediaType: 'photo',
+        cameraType: 'back' as CameraType,
       };
 
-      try {
-        await AppBlockerModule.updateSchedule(JSON.stringify(updatedSchedule));
-        setSchedule(updatedSchedule);
-      } catch (error) {
-        console.error('Failed to update schedule:', error);
-      }
+      launchCamera(options, async (response) => {
+        if (response.didCancel) {
+          console.log('User cancelled image picker');
+        } else if (response.errorCode) {
+          console.error('ImagePicker Error: ', response.errorMessage);
+        } else {
+          const tasks = [...(schedule[selectedDay] || [])];
+
+          if (tasks[index]) {
+            tasks[index] = {
+              ...tasks[index],
+              accomplished: !tasks[index].accomplished,
+            };
+          }
+
+          const updatedSchedule = {
+            ...schedule,
+            [selectedDay]: tasks,
+          };
+
+          try {
+            await AppBlockerModule.updateSchedule(JSON.stringify(updatedSchedule));
+            setSchedule(updatedSchedule);
+          } catch (error) {
+            console.error('Failed to update schedule:', error);
+          }
+        }
+      });
     } else {
-      console.log("It's not time yet to mark this task as accomplished.");
+      Alert.alert("It's not time yet to mark this task as accomplished.");
     }
   };
 
@@ -141,16 +186,34 @@ const AddHabitScreen: React.FC = () => {
         horizontal
         showsHorizontalScrollIndicator={false}
         className="mb-4 max-h-16"
-        contentContainerStyle={`items-center justify-center`}
       />
       <Text className="text-lg mb-2 text-gray-300">Enter Time (HH:MM):</Text>
       <TextInput
         className="border p-2 mb-2 rounded-lg bg-gray-800 text-white"
-        value={time}
-        onChangeText={setTime}
-        placeholder="e.g., 08:00"
+        value={name}
+        onChangeText={setName}
+        placeholder="Name"
         placeholderTextColor="gray"
       />
+      <TouchableOpacity
+        onPress={() => setShowTimePicker(true)}
+        className="border p-2 mb-2 rounded-lg bg-gray-800 text-white">
+        <Text>{time.toTimeString().slice(0, 5)}</Text>
+      </TouchableOpacity>
+      {showTimePicker && (
+        <DateTimePicker
+          value={time}
+          mode="time"
+          is24Hour={true}
+          display="default"
+          onChange={(event, selectedDate) => {
+            setShowTimePicker(Platform.OS === 'ios');
+            if (selectedDate) {
+              setTime(selectedDate);
+            }
+          }}
+        />
+      )}
       <TouchableOpacity
         onPress={handleAddTime}
         className="bg-green-500 p-3 rounded-lg items-center">
@@ -168,7 +231,10 @@ const AddHabitScreen: React.FC = () => {
             <TouchableOpacity
               onPress={() => handleToggleAccomplished(index, item.time)} // Use index
               className="p-2 border-b border-gray-700 bg-gray-800">
-              <Text className="text-white">{item.time}</Text>
+              <View className='flex-row justify-between'>
+                <Text className='text-white font-bold text-lg' >{item.name}</Text>
+                <Text className="text-white">{item.time}</Text>
+              </View>
               <Text className="text-green-400">
                 Accomplished: {item.accomplished ? 'Yes' : 'No'}
               </Text>
