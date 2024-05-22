@@ -4,7 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HabitsScreen from '../screens/HabitsScreen';
-import DetailsScreen from '../screens/DetailsScreen';
+import AddHabitScreen from '../screens/DetailsScreen'; '../screens/DetailsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import PhoneNumberScreen from '../screens/PhoneNumberScreen';
 import { RootStackParamList, MainTabParamList } from '../types';
@@ -19,7 +19,7 @@ const MainTabs = () => {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ color, size }) => {
-          let iconName = '';
+          let iconName = 'calendar-outline';
           let IconComponent = Icon;
 
           if (route.name === 'Habits') {
@@ -49,7 +49,7 @@ const MainTabs = () => {
       />
       <Tab.Screen 
         name="Details" 
-        component={DetailsScreen} 
+        component={AddHabitScreen} 
         options={{ headerShown: false }} // Remover cabeçalho
       />
       <Tab.Screen 
