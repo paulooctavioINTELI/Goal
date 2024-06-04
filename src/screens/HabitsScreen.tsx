@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   FlatList,
   SafeAreaView,
-  Alert,
 } from "react-native";
 import { NativeModules } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -15,7 +14,10 @@ import {
   CameraType,
 } from "react-native-image-picker";
 import { format, parseISO, isBefore } from "date-fns";
+import { useFocusEffect } from "@react-navigation/native";
 import { Task, Schedule, TaskWithDay } from "../types";
+import Logo from '../assets/logo.svg';
+
 
 const { AppBlockerModule } = NativeModules;
 
@@ -35,9 +37,11 @@ const HabitListScreen: React.FC = () => {
   const [pendingTasksToday, setPendingTasksToday] = useState<TaskWithDay[]>([]);
   const [otherTasks, setOtherTasks] = useState<TaskWithDay[]>([]);
 
-  useEffect(() => {
-    fetchSchedule();
-  }, [selectedDay]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchSchedule();
+    }, [selectedDay])
+  );
 
   const fetchSchedule = async () => {
     try {
@@ -66,7 +70,7 @@ const HabitListScreen: React.FC = () => {
   const separateTasks = (schedule: Schedule, day: string) => {
     const pendingToday: TaskWithDay[] = [];
     const other: TaskWithDay[] = [];
-    
+
     Object.entries(schedule).forEach(([taskDay, tasks]) => {
       tasks.forEach((task) => {
         const dateTimeString = getDateTimeString(taskDay, task.time);
@@ -107,7 +111,7 @@ const HabitListScreen: React.FC = () => {
   const updateTaskAsAccomplished = async (task: TaskWithDay) => {
     const tasks = [...(schedule[task.day] || [])];
     const updatedTasks = tasks.map((t) =>
-      t.time === task.time ? { ...t, accomplished: true } : t
+      t.time === task.time && t.name === task.name ? { ...t, accomplished: true } : t
     );
     const updatedSchedule = {
       ...schedule,
@@ -118,6 +122,8 @@ const HabitListScreen: React.FC = () => {
       await AppBlockerModule.updateSchedule(JSON.stringify(updatedSchedule));
       setSchedule(updatedSchedule);
       separateTasks(updatedSchedule, selectedDay);
+      // Remover a tarefa de pendingTasksToday
+      setPendingTasksToday((prev) => prev.filter((t) => !(t.time === task.time && t.name === task.name)));
     } catch (error) {
       console.error("Failed to update schedule:", error);
     }
@@ -175,7 +181,7 @@ const HabitListScreen: React.FC = () => {
 
   return (
     <SafeAreaView className="flex-1 p-4 bg-rich-900">
-      {pendingTasksToday[0] && (
+      {pendingTasksToday[0] ? (
         <View className="mb-12 flex-row justify-between items-start">
           <View className="gap-4">
             <Text className="text-3xl text-alice font-bold">{pendingTasksToday[0].name}</Text>
@@ -184,6 +190,11 @@ const HabitListScreen: React.FC = () => {
           <TouchableOpacity onPress={() => handleTakePhoto(pendingTasksToday[0])} className="flex p-2 bg-alice-900 rounded-lg">
             <Icon name="camera-outline" size={30} color="#e8f1f2" />
           </TouchableOpacity>
+        </View>
+      ) : (
+        <View className="mb-12 gap-4 flex-row  items-center">
+          <Logo width={60} height={60} className="mt-4" />
+          <Text className="text-4xl text-alice font-bold">Goal</Text>
         </View>
       )}
       <View className="items-center">
