@@ -128,10 +128,13 @@ const AdjustSpecificDaysScreen: React.FC = () => {
   return (
     <SafeAreaView className="flex-1  bg-rich-900">
       <ScrollView className='p-4' contentContainerStyle={{ flexGrow: 1 }}>
-        <Text className="text-2xl font-bold text-alice mb-4">Ajuste de Dias Específicos</Text>
+        
+        <Text className="text-4xl font-bold text-alice mt-5 mb-8">{habitName}</Text>
+        <Text className="text-lg font-bold mb-4 text-alice">Em algum dia o horário é diferente?</Text>
         <View className="flex-row mb-4">
           {DAYS_OF_WEEK.map(renderDayOption)}
         </View>
+        
         <View className='gap-3 mb-20'>
           {dayAdjustments[selectedDay]?.map((time, index) => (
             <View key={index} className="m-1 px-2 py-3 rounded-lg bg-rich flex-row justify-between items-center">
@@ -164,18 +167,13 @@ const AdjustSpecificDaysScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
-      <View className='absolute bottom-0 flex justify-center items-center py-2 self-center w-full'>
-      <BlurView
-        style={{ position: 'absolute', width: '100%', height: '100%' }}
-        blurType="light"
-        blurAmount={10}
-        reducedTransparencyFallbackColor="white"
-      />
+      <View className='absolute bottom-0 flex justify-center items-center py-5 self-center w-full'>
+
         <TouchableOpacity
           onPress={handleSave}
           className="bg-celadon-500 w-3/4 p-3 rounded-lg items-center"
         >
-          <Text className="text-rich-500 font-bold">Começar</Text>
+          <Text className="text-alice font-bold">Começar</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
