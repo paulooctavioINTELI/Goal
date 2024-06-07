@@ -12,6 +12,7 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import android.net.Uri
 
 
 class AppBlockerModule(private val reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
@@ -51,6 +52,39 @@ class AppBlockerModule(private val reactContext: ReactApplicationContext) : Reac
             promise.resolve(jsonSchedule)
         } catch (e: Exception) {
             promise.reject("Failed to retrieve schedule", e)
+        }
+    }
+
+    @ReactMethod
+    fun requestOverlayPermission(promise: Promise) {
+        try {
+            if (!Settings.canDrawOverlays(reactContext)) {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:${reactContext.packageName}")
+                )
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                reactContext.startActivity(intent)
+                promise.resolve(true)
+            } else {
+                promise.resolve(false)
+            }
+        } catch (e: Exception) {
+            promise.reject("Failed to request overlay permission", e)
+        }
+    }
+
+    @ReactMethod
+    fun requestAccessibilityPermission(promise: Promise) {
+        try {
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val componentName = ComponentName(reactContext, AppMonitorService::class.java)
+            intent.putExtra("extra_fragment_arg_key", componentName.flattenToString())
+            reactContext.startActivity(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("Failed to request accessibility permission", e)
         }
     }
 }

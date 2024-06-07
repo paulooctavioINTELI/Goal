@@ -136,7 +136,7 @@ class AppMonitorService : AccessibilityService() {
             val taskTime = task.getString("time")
             val accomplished = task.getBoolean("accomplished")
             val taskTimeDate = SimpleDateFormat("HH:mm", Locale.getDefault()).parse(taskTime)
-
+            Log.d("AppMonitorServicePack", packageName)
             if (currentTimeDate.compareTo(taskTimeDate) >= 0 && !accomplished && blockedPackages.contains(packageName)) {
                 return true
             }
